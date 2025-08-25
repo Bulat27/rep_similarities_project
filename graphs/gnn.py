@@ -49,6 +49,12 @@ def train_model(
     )
 
     results = []
+    best_id_val_acc = -float("inf")
+    best_id_state = None  # will hold CPU copy of best params
+
+    best_ood_val_acc = -float("inf")
+    best_ood_state = None  # will hold CPU copy of best params
+
     for epoch in tqdm(range(1, 1 + optimizer_params[OPTIMIZER_PARAMS_EPOCHS_KEY])):
 
         if p_drop_edge > 0:
@@ -66,20 +72,48 @@ def train_model(
                 model=model, x=data.x, edge_index=edge_index, y=data.y, train_idx=train_idx, optimizer=optimizer
             )
 
-        train_acc, val_acc = validate(model, data, train_idx, val_idx)
+        train_acc, id_val_acc, ood_val_acc = validate(model, data, train_idx, val_idx, data.val_mask)
 
-        epoch_res = [epoch, loss, train_acc, val_acc]
+         # Track the best model by validation accuracy
+        if id_val_acc > best_id_val_acc:
+            best_id_val_acc = float(id_val_acc)
+            # store a CPU copy so we don't hold extra GPU memory
+            best_id_state = {k: v.detach().cpu() for k, v in model.state_dict().items()}
+
+        # Best by OOD-val (only if provided)
+        if (ood_val_acc is not None) and (ood_val_acc > best_ood_val_acc):
+            best_ood_val_acc = float(ood_val_acc)
+            best_ood_state = {k: v.detach().cpu() for k, v in model.state_dict().items()}
+
+        epoch_res = [epoch, loss, train_acc, id_val_acc]
+
+        if ood_val_acc is not None:
+            epoch_res.append(ood_val_acc)
 
         if b_test:
-            test_acc = test(model, data, test_idx=split_idx[SPLIT_IDX_TEST_KEY])
-            epoch_res.append(test_acc)
+            # test_acc = test(model, data, test_idx=split_idx[SPLIT_IDX_TEST_KEY])
+            # This does not have to be changed when I subsample the test set, right? Check!
+            id_test_acc = test(model, data, test_idx=data.id_test_mask)
+            ood_test_acc = test(model, data, test_idx=data.test_mask)
+
+            epoch_res.append(id_test_acc)
+            epoch_res.append(ood_test_acc)
 
         results.append(epoch_res)
 
     torch.save(model.state_dict(), save_path)
 
+    if best_id_state is not None:
+        best_id_path = save_path.with_name(f"{save_path.stem}_best_id{save_path.suffix}")
+        torch.save(best_id_state, best_id_path)
+
+    if best_ood_state is not None:
+        best_ood_path = save_path.with_name(f"{save_path.stem}_best_ood{save_path.suffix}")
+        torch.save(best_ood_state, best_ood_path)
+
     if b_test:
-        return results, test(model, data, split_idx[SPLIT_IDX_TEST_KEY])
+        # Not useful right now, so let's avoid another forward pass
+        return results, 0
 
     return results
 
@@ -113,7 +147,7 @@ def train_epoch_dropout(model, x, edge_index, y, train_idx, p_drop_edge, optimiz
 
 
 @torch.no_grad()
-def validate(model, data, train_idx, val_idx):
+def validate(model, data, train_idx, val_idx, ood_val_idx=None):
     model.eval()
 
     out_train = model(data.x, data.adj_t)[train_idx]
@@ -122,12 +156,20 @@ def validate(model, data, train_idx, val_idx):
     out_val = model(data.x, data.adj_t)[val_idx]
     val_pred = out_val.argmax(dim=-1, keepdim=True)
 
+    if ood_val_idx is not None:
+        ood_out_val = model(data.x, data.adj_t)[ood_val_idx]
+        ood_val_pred = ood_out_val.argmax(dim=-1, keepdim=True)
+
     train_acc, val_acc = (
         multiclass_accuracy(train_pred.squeeze(1), data.y[train_idx].squeeze(1)).detach().cpu().numpy(),
         multiclass_accuracy(val_pred.squeeze(1), data.y[val_idx].squeeze(1)).detach().cpu().numpy(),
     )
 
-    return train_acc, val_acc
+    if ood_val_idx is not None:
+        ood_val_acc = multiclass_accuracy(ood_val_pred.squeeze(1), data.y[ood_val_idx].squeeze(1)).detach().cpu().numpy()
+        return train_acc, val_acc, ood_val_acc
+    
+    return train_acc, val_acc 
 
 
 @torch.no_grad()

@@ -43,12 +43,20 @@ def train_model(
     )
 
     results = []
+    best_val_acc = -float("inf")
+    best_state = None  # will hold CPU copy of best params
     n_epochs = optimizer_params[OPTIMIZER_PARAMS_EPOCHS_KEY]
     for epoch in tqdm(range(1, 1 + n_epochs)):
 
         loss = train_epoch(model=model, data=data, train_idx=train_idx, optimizer=optimizer)
 
         train_acc, val_acc = validate(model, data, train_idx, val_idx)
+
+        # Track the best model by validation accuracy
+        if val_acc > best_val_acc:
+            best_val_acc = float(val_acc)
+            # store a CPU copy so we don't hold extra GPU memory
+            best_state = {k: v.detach().cpu() for k, v in model.state_dict().items()}
 
         epoch_res = [epoch, loss, train_acc, val_acc]
 
@@ -59,6 +67,11 @@ def train_model(
         results.append(epoch_res)
 
     torch.save(model.state_dict(), save_path)
+
+    # 2) also save best-validation model with "_best" suffix
+    if best_state is not None:
+        best_path = save_path.with_name(f"{save_path.stem}_best{save_path.suffix}")
+        torch.save(best_state, best_path)
 
     if b_test:
         return results, test(model, data, split_idx[SPLIT_IDX_TEST_KEY])

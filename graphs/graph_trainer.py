@@ -64,6 +64,8 @@ from repsim.benchmark.types_globals import SINGLE_SAMPLE_SEED
 from repsim.benchmark.types_globals import STANDARD_SETTING
 from torch_geometric import transforms as t
 from torch_geometric.utils import to_edge_index
+from good_data.good_data_loader import load_good_data
+from good_data.utils.good_name_registry import canonicalize_good_for_params
 
 
 class GraphTrainer(ABC):
@@ -75,6 +77,11 @@ class GraphTrainer(ABC):
         test_name: EXPERIMENT_IDENTIFIER,
         seed: EXPERIMENT_SEED,
         device: int | str = 0,
+        # domain=None,
+        # shift=None,
+        # generate=None,
+        # val_split_type=None,
+        # test_split_type=None,
     ):
 
         self.test_name = test_name
@@ -82,7 +89,17 @@ class GraphTrainer(ABC):
         self.architecture_type = architecture_type
         self.seed = seed
         self.dataset_name: GRAPH_DATASET_TRAINED_ON = dataset_name
-        self.data, self.n_classes, self.split_idx = self.get_data(self.dataset_name)
+        # self.domain = domain
+        # self.shift = shift
+        # self.generate = generate
+        # self.val_split_type = val_split_type
+        # self.test_split_type = test_split_type
+        
+        if dataset_name.lower().startswith("good"):
+            self.data, self.n_classes, self.split_idx = load_good_data(dataset_name)
+        else:
+            self.data, self.n_classes, self.split_idx = self.get_data(dataset_name)
+
         self.edge_index = to_edge_index(self.data.adj_t)[0]
         self.models = dict()
 
@@ -137,7 +154,10 @@ class GraphTrainer(ABC):
 
     def _load_model(self, setting):
         model = GNN_DICT[self.architecture_type](**self.gnn_params)
-        model_file = self.setting_paths[setting] / TORCH_STATE_DICT_FILE_NAME_SEED(self.seed)
+        # This should not be hardcoded, but it is fine temporarily.
+        # It can be easily changed if you want the model that is best on the ood validation set (ideally this should be parameterized)
+        base = self.setting_paths[setting] / TORCH_STATE_DICT_FILE_NAME_SEED(self.seed)
+        model_file = base.with_name(f"{base.stem}_best_id{base.suffix}")
 
         if not model_file.is_file():
             raise FileNotFoundError(f"Model File for seed {self.seed} does not exist")
@@ -202,7 +222,7 @@ class GraphTrainer(ABC):
             data.num_nodes = data.x.shape[0]
 
             return data, n_classes, split_idx
-
+            
     def _log_train_results(self, train_results, setting):
         df_train = pd.DataFrame(
             train_results,
@@ -210,14 +230,27 @@ class GraphTrainer(ABC):
                 "Epoch",
                 "Loss",
                 "Training_Accuracy",
-                "Validation_Accuracy",
-                "Test_accuracy",
+                "ID_Validation_Accuracy",
+                "OOD_Validation_Accuracy",
+                "ID_Test_Accuracy",
+                "OOD_Test_Accuracy"
             ],
         )
         df_train.to_csv(
             self.setting_paths[setting] / TRAIN_LOG_FILE_NAME_SEED(self.seed),
             index=False,
         )
+
+    # def _log_best_scores(self, best_scores, setting):
+    #     # one-line CSV containing the best-val model’s evaluation
+    #     out_path = self.setting_paths[setting] / f"best_eval_seed{self.seed}.csv"
+    #     df = pd.DataFrame([{
+    #         "Best_Train_Accuracy": best_scores["train"],
+    #         "Best_Val_Accuracy": best_scores["val"],
+    #         "Best_Test_Accuracy": best_scores["test"],
+    #     }])
+    #     df.to_csv(out_path, index=False)
+
 
     def train_models(self, settings: List[SETTING_IDENTIFIER] = None, retrain: bool = False):
 
@@ -292,6 +325,7 @@ class GraphTrainer(ABC):
 
         if log_results:
             self._log_train_results(train_results, setting)
+            # self._log_best_scores(best_scores, setting)
 
     def get_test_representations(self, setting: SETTING_IDENTIFIER):
 
@@ -392,12 +426,13 @@ class StandardTrainer(GraphTrainer):
         )
 
     def _get_gnn_params(self):
+        base_key = canonicalize_good_for_params(self.dataset_name)
 
-        gnn_params = copy.deepcopy(GNN_PARAMS_DICT[self.architecture_type][self.dataset_name])
+        gnn_params = copy.deepcopy(GNN_PARAMS_DICT[self.architecture_type][base_key])
         gnn_params["in_channels"] = self.data.num_features
         gnn_params["out_channels"] = self.n_classes
 
-        optimizer_params = copy.deepcopy(OPTIMIZER_PARAMS_DICT[self.architecture_type][self.dataset_name])
+        optimizer_params = copy.deepcopy(OPTIMIZER_PARAMS_DICT[self.architecture_type][base_key])
 
         return gnn_params, optimizer_params
 
@@ -422,12 +457,13 @@ class LabelTestTrainer(GraphTrainer):
         )
 
     def _get_gnn_params(self):
+        base_key = canonicalize_good_for_params(self.dataset_name)
 
-        gnn_params = copy.deepcopy(GNN_PARAMS_DICT[self.architecture_type][self.dataset_name])
+        gnn_params = copy.deepcopy(GNN_PARAMS_DICT[self.architecture_type][base_key])
         gnn_params["in_channels"] = self.data.num_features
         gnn_params["out_channels"] = self.n_classes
 
-        optimizer_params = copy.deepcopy(OPTIMIZER_PARAMS_DICT[self.architecture_type][self.dataset_name])
+        optimizer_params = copy.deepcopy(OPTIMIZER_PARAMS_DICT[self.architecture_type][base_key])
 
         return gnn_params, optimizer_params
 
@@ -544,7 +580,7 @@ def parse_args():
         "--datasets",
         nargs="*",
         type=str,
-        choices=DATASET_LIST,
+        # choices=DATASET_LIST, - I had to do it because of the new dataset names that are mapped
         default=DEFAULT_DATASET_LIST,
         help="Datasets used in evaluation.",
     )
@@ -578,6 +614,40 @@ def parse_args():
         action="store_true",
         help="Whether to retrain existing models.",
     )
+
+    # parser.add_argument(
+    #     "--good_domain",
+    #     type=str,
+    #     default=None,
+    #     help="GOOD domain (e.g., 'degree', 'word', 'scaffold', 'color'). Only used when dataset startswith 'good'.",
+    # )
+    # parser.add_argument(
+    #     "--good_shift",
+    #     type=str,
+    #     choices=["no_shift", "covariate", "concept"],
+    #     default=None,
+    #     help="GOOD shift. Only used when dataset startswith 'good'.",
+    # )
+    # parser.add_argument(
+    #     "--good_generate",
+    #     action="store_true",
+    #     default=False,
+    #     help="Force regeneration of GOOD dataset processing. Only used when dataset startswith 'good'.",
+    # )
+    # parser.add_argument(
+    #     "--val_split_type",
+    #     type=str,
+    #     choices=["id", "ood"],
+    #     default=None,
+    #     help="Validation split for GOOD datasets ('id' or 'ood').",
+    # )
+    # parser.add_argument(
+    #     "--test_split_type",
+    #     type=str,
+    #     choices=["id", "ood"],
+    #     default=None,
+    #     help="Test/benchmark split for GOOD datasets ('id' or 'ood').",
+    # )
     return parser.parse_args()
 
 
@@ -596,5 +666,15 @@ if __name__ == "__main__":
 
     for architecture, dataset in product(args.architectures, args.datasets):
         for s in args.seeds:
-            trainer = trainer_class(architecture_type=architecture, dataset_name=dataset, seed=s)
+            trainer = trainer_class(
+                architecture_type=architecture,
+                dataset_name=dataset,
+                seed=s,
+                # NEW: forward GOOD-specific params (harmless for non-GOOD datasets)
+                # domain=args.good_domain,
+                # shift=args.good_shift,
+                # generate=args.good_generate,
+                # val_split_type=args.val_split_type,
+                # test_split_type=args.test_split_type,
+            )
             trainer.train_models(settings=args.settings, retrain=args.retrain)

@@ -1,7 +1,9 @@
 cache_to_disk: false
 cache_to_mem: true
-excluded_measures:
-- GeometryScore
+# excluded_measures:
+# - GeometryScore
+included_measures:
+- CKA
 experiments:
 - filter_key_vals:
     domain: GRAPHS

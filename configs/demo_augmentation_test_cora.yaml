@@ -39,4 +39,4 @@ table_creation:
   save_aggregated_df: true
   save_full_df: true
   full_df_filename: demo_augmentation_test_cora_full.csv
-threads: 1
+threads: 8

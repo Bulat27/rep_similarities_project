@@ -30,11 +30,13 @@ BENCHMARK_NN_ARCHITECTURES = (
 # ----------------------------- Datasets trained on ---------------------------- #
 VISION_DATASET_TRAINED_ON = Literal["CIFAR10", "CIFAR100", "ImageNet"]
 NLP_DATASET_TRAINED_ON = Literal["mnli, sst2"]
-GRAPH_DATASET_TRAINED_ON = Literal["ogbn-arxiv", "cora", "flickr"]
+GRAPH_DATASET_TRAINED_ON = Literal["ogbn-arxiv", "cora", "flickr", "GOODCora", "GOODArxiv"]
 
 ARXIV_DATASET_NAME: GRAPH_DATASET_TRAINED_ON = "ogbn-arxiv"
 CORA_DATASET_NAME: GRAPH_DATASET_TRAINED_ON = "cora"
 FLICKR_DATASET_NAME: GRAPH_DATASET_TRAINED_ON = "flickr"
+GOOD_CORA_DATASET_NAME: GRAPH_DATASET_TRAINED_ON = "GOODCora"
+GOOD_ARXIV_DATASET_NAME: GRAPH_DATASET_TRAINED_ON = "GOODArxiv"
 
 BENCHMARK_DATASET = VISION_DATASET_TRAINED_ON | NLP_DATASET_TRAINED_ON | GRAPH_DATASET_TRAINED_ON
 BENCHMARK_DATASETS_LIST = (
@@ -42,6 +44,24 @@ BENCHMARK_DATASETS_LIST = (
     + list(get_args(NLP_DATASET_TRAINED_ON))
     + list(get_args(GRAPH_DATASET_TRAINED_ON))
 )
+
+# ---------------------------- GOOD Benchmark Datasets Identifiers --------------------------- #
+
+GOOD_BASE_DATASETS = [
+    "GOODCora",
+    "GOODArxiv"
+    # add others you care about, e.g., "GOODCiteseer", "GOODPubmed", ...
+]
+
+GOOD_VARIANT_SUFFIXES = [
+    "",
+    "DegCov"                                                                                                                                                                                            # base
+    # "DegCovIDID",               # examples — extend as you go
+    # "DegCovOODID",
+    # "DegCovIDOOD",
+    # "DegCovOODOOD",
+    # Add more when you introduce new splits/variants
+]
 
 
 # ---------------------------- EXPERIMENT SETTING IDENTIFIERS --------------------------- #

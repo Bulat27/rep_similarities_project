@@ -51,6 +51,7 @@ class OutputCorrelationExperiment(AbstractExperiment):
         self.accuracy_based_measures = [AbsoluteAccDiff()] if use_acc_comparison else []
         self.models = models
         self.meta_data = meta_data
+        self.abs_experiment = kwargs.pop("abs_experiment", False)
         self.kwargs = kwargs
         self.rep_cache = {}  # lookup table for representations, so we can reuse computed representations
         self.output_cache = {}
@@ -105,7 +106,7 @@ class OutputCorrelationExperiment(AbstractExperiment):
                 repsims = repsims[~comparisons_with_at_least_one_nan]
                 funcsims = funcsims[~comparisons_with_at_least_one_nan]
 
-                if repsim_measure.larger_is_more_similar:
+                if repsim_measure.larger_is_more_similar and not self.abs_experiment:
                     # make similarities into distances
                     repsims = -1 * repsims
 

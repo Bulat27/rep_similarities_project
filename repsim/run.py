@@ -176,6 +176,7 @@ def run(config_path: str):
             filter_key_vals = experiment.get("filter_key_vals", None)
             separation_keys = experiment.get("separation_keys", None)
             compare_accs = experiment.get("use_acc_comparison", False)
+            abs_experiment = experiment.get("abs_experiment", False)
 
             models = _filter_models(ALL_TRAINED_MODELS, filter_key_vals)
             model_sets = _separate_models_by_keys(models, separation_keys)
@@ -192,6 +193,7 @@ def run(config_path: str):
                     only_extract_reps=only_extract_reps,
                     rerun_nans=rerun_nans,
                     use_acc_comparison=compare_accs,
+                    abs_experiment=abs_experiment
                 )
                 all_experiments.append(exp)
 

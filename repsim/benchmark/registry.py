@@ -33,6 +33,7 @@ from repsim.utils import NLPModel
 from repsim.utils import SST2
 from repsim.utils import TrainedModel
 from repsim.utils import VisionModel
+from good_data.utils.good_name_registry import enumerate_good_datasets_with_variants
 
 NLP_TRAIN_DATASETS = {
     "sst2": SST2("sst2"),
@@ -1562,7 +1563,43 @@ def all_trained_graph_models() -> list[TrainedModel]:
     return all_trained_models
 
 
+def all_trained_good_graph_models() -> list[TrainedModel]:
+    all_trained_models = []
+
+    good_datasets = enumerate_good_datasets_with_variants()
+
+    for i in DEFAULT_SEEDS:
+        for arch in [GCN_MODEL_NAME, GRAPHSAGE_MODEL_NAME, GAT_MODEL_NAME]:
+            for dataset in good_datasets:
+                for setting in list(get_args(SETTING_IDENTIFIER)):
+                    all_trained_models.append(
+                        GraphModel(
+                            domain=GRAPH_DOMAIN,
+                            architecture=arch,
+                            train_dataset=dataset,
+                            identifier=setting,
+                            seed=i,
+                            additional_kwargs={},
+                        )
+                    )
+    for i in [5, 6, 7, 8, 9]:
+        for arch in [GCN_MODEL_NAME, GRAPHSAGE_MODEL_NAME, GAT_MODEL_NAME]:
+            for dataset in good_datasets:
+                all_trained_models.append(
+                    GraphModel(
+                        domain=GRAPH_DOMAIN,
+                        architecture=arch,
+                        train_dataset=dataset,
+                        identifier=STANDARD_SETTING,
+                        seed=i,
+                        additional_kwargs={},
+                    )
+                )
+    
+    return all_trained_models
+
 ALL_TRAINED_MODELS: list[TrainedModel | NLPModel] = []
-ALL_TRAINED_MODELS.extend(all_trained_vision_models())
-ALL_TRAINED_MODELS.extend(all_trained_nlp_models())
+# ALL_TRAINED_MODELS.extend(all_trained_vision_models())
+# ALL_TRAINED_MODELS.extend(all_trained_nlp_models())
 ALL_TRAINED_MODELS.extend(all_trained_graph_models())
+ALL_TRAINED_MODELS.extend(all_trained_good_graph_models())
