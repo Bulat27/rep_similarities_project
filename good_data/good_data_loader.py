@@ -1,7 +1,9 @@
 import torch
 import torch_geometric
 
-from GOOD import register as good_reg
+from good_data.good_register.register import register as good_reg
+from good_data.good_datasets.good_cora import GOODCora
+from good_data.good_datasets.good_arxiv import GOODArxiv
 from graphs.config import SPLIT_IDX_BENCHMARK_TEST_KEY
 from graphs.config import SPLIT_IDX_TEST_KEY
 from graphs.config import SPLIT_IDX_TRAIN_KEY

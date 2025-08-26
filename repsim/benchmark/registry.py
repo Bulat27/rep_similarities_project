@@ -2,8 +2,8 @@ from collections.abc import Sequence
 from typing import get_args
 
 import repsim.benchmark.paths
-import repsim.nlp
-import repsim.utils
+# import repsim.nlp
+# import repsim.utils They were not used
 from repsim.benchmark.types_globals import AUGMENTATION_100_SETTING
 from repsim.benchmark.types_globals import AUGMENTATION_25_SETTING
 from repsim.benchmark.types_globals import AUGMENTATION_50_SETTING

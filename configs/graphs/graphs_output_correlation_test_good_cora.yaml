@@ -1,14 +1,14 @@
 cache_to_disk: false
 cache_to_mem: true
 only_eval: False
-# excluded_measures:
-# - RSMNormDifference
-# - IMDScore
-# - GeometryScore
-# - PWCCA
-included_measures:
-- JaccardSimilarity
-- CKA
+excluded_measures:
+- RSMNormDifference
+- IMDScore
+- GeometryScore
+- PWCCA
+# included_measures:
+# - JaccardSimilarity
+# - CKA
 experiments:
 - filter_key_vals:
     domain: GRAPHS
@@ -31,22 +31,22 @@ experiments:
     - GOODCoraDegCov
   grouping_keys:
   - identifier
-  name: output_correlation_test blabla
+  name: output_correlation_test try
   # representation_dataset: cora
-  representation_dataset: blabla # You have to remember to change it because of caching!
+  representation_dataset: try # You have to remember to change it because of caching!
   separation_keys:
   - architecture
   type: OutputCorrelationExperiment
   use_acc_comparison: true
   abs_experiment: false # Do not forget to change this one!
 only_extract_reps: false
-raw_results_filename: blabla.parquet
+raw_results_filename: try.parquet
 table_creation:
   columns:
   - quality_measure
   - architecture
-  filename: blabla.csv
-  full_df_filename: blabla.csv
+  filename: try.csv
+  full_df_filename: try.csv
   row_index: similarity_measure
   save_aggregated_df: false
   save_full_df: true

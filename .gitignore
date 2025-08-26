@@ -59,3 +59,17 @@ vision/_train_model_submission.py
 vision/_simple_submission_print.py
 vision/_merge_parquets.py
 vision/_plot_tables.py
+
+# mine
+gat_retrained
+gcn_retrained
+graph_models_version_1_zipped
+graph_models_version_2_zipped
+their_results_zipped
+training_results
+zipped_datasets
+check.py
+aux_scripts
+local_ripser
+datasets
+.venv310
