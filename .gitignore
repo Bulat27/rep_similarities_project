@@ -73,3 +73,4 @@ aux_scripts
 local_ripser
 datasets
 .venv310
+.old_venv
